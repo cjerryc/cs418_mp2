@@ -1,0 +1,137 @@
+<!DOCTYPE HTML> 
+<html lang="en"> 
+<head>
+<title>Hello Terrain </title>
+<meta charset="utf-8"> 
+</head>
+
+    
+<script id="shader-vs" type="x-shader/x-vertex">
+
+    attribute vec3 aVertexNormal;
+    attribute vec3 aVertexPosition;
+
+    uniform mat4 uMVMatrix;
+    uniform mat4 uPMatrix;
+    uniform mat3 uNMatrix;
+
+    uniform vec3 uLightPosition;
+    uniform vec3 uAmbientLightColor;
+    uniform vec3 uDiffuseLightColor;
+    uniform vec3 uSpecularLightColor;
+    uniform vec3 uAmbientMaterialColor;
+    uniform vec3 uDiffuseMaterialColor;
+    uniform vec3 uSpecularMaterialColor;
+    
+    uniform float uShininess;
+    varying vec4 vColor;
+    varying vec3 VertexPos;
+
+    
+    
+    void main(void) {
+        vec4 vertexPositionEye4 = uMVMatrix * vec4(aVertexPosition, 1.0);
+        vec3 vertexPositionEye3 = vertexPositionEye4.xyz/ vertexPositionEye4.w;
+        // Normalize interpolated normal
+        vec3 normalEye = normalize(uNMatrix * aVertexNormal);
+    
+        // Calculate the vector (l) to the light source
+        vec3 vectorToLightSource = normalize(uLightPosition - vertexPositionEye3);
+    
+        // Calculate n dot l for diffuse lighting
+        float diffuseLightWeightning = max(dot(normalEye, vectorToLightSource), 0.0);
+    
+        vec3 viewVectorEye = -normalize(vertexPositionEye3);
+    
+    
+        // Calculate the reflection vector (r) that is needed for specular light
+        //vec3 reflectionVector = normalize(reflect(-vectorToLightSource, normalEye));
+    
+        //float rdotv = max(dot(reflectionVector, viewVectorEye), 0.0);
+    
+        vec3 halfDir = normalize(vectorToLightSource + viewVectorEye);
+    
+        float specAngle = max(dot(halfDir, normalEye), 0.0);
+    
+        float specularLightWeightning = pow(specAngle, uShininess);
+    
+        vColor = vec4(((uAmbientLightColor * uAmbientMaterialColor) + (uDiffuseLightColor * uDiffuseMaterialColor) * diffuseLightWeightning + ((uSpecularLightColor * uSpecularMaterialColor) * specularLightWeightning)), 1.0);
+        
+        gl_Position = uPMatrix*uMVMatrix*vec4(aVertexPosition, 1.0);
+        
+        VertexPos = aVertexPosition;
+    }
+</script>
+  
+<script id="shader-fs" type="x-shader/x-fragment">
+precision mediump float;
+varying vec4 vColor;
+varying vec3 VertexPos;
+uniform bool uFog;
+vec4 color = vec4(1.0 ,0.0 ,0.0, 1.0);
+const float LOG2 = 1.442695;
+float fogDensity = 0.5;
+//varying vec3 fragPos;
+void main(void) {
+
+    if(VertexPos.z < 0.3){
+        gl_FragColor = vColor*vec4(0.9, 0.4, 0.5, 1.0);
+    }
+    if(VertexPos.z < 0.1){
+        gl_FragColor = vColor*vec4(0.8, 1.0, 1.0, 1.0);
+    }
+    if(VertexPos.z < 0.07){
+        gl_FragColor = vColor*vec4(0.2, 0.6, 0.6, 1.0);
+    }
+    if(VertexPos.z < 0.0){
+        gl_FragColor = vColor*vec4(0.0, 0.7, 0.2, 1.0);
+    }
+    if(VertexPos.z < -0.01){
+       gl_FragColor = vColor*vec4(0.0, 0.5, 0.9, 1.0);
+     }
+     float fogCoord = (gl_FragCoord.z/gl_FragCoord.w);
+     vec4 fogColor = vec4(1.0, 1.0, 1.0, 1.0);
+
+     float fogFactor = exp2( -fogDensity * fogDensity * fogCoord * fogCoord * LOG2 ); 
+     fogFactor = clamp(fogFactor, 0.0, 1.0); 
+     if(uFog){
+        gl_FragColor = mix(fogColor, gl_FragColor, fogFactor );  
+     }
+
+}
+
+
+</script>
+
+<script src="gl-matrix-min.js"></script> 
+<script src="webgl-utils.js"></script> 
+<script src="Terrain.js"></script>  
+<script src="mp2.js"></script>   
+<body onload="startup();">
+ <canvas id="myGLCanvas" width="800" height="800"></canvas>
+ <br>
+ Pressing the <b>Left arrow</b> key will make the plane roll to its <b>left</b>.<br>
+ Pressing the <b>Right arrow</b> key will make the plane roll to its <b>right</b>.<br>
+ Pressing the <b>Up arrow</b> key will cause the airplane to pitch <b>up</b>.<br>
+ Pressing the <b>Down arrow</b> key will cause the airplane to pitch <b>down</b>.<br>
+ Pressing the <b>+</b> key will <b>increase</b> the airplane’s speed.<br>
+ Pressing the <b>-</b> key will <b>decrease</b> the airplane’s speed.<br>
+ <br>
+ Checking the <b>Fog</b> button will <b>include fog</b> for the terrain.<br>
+ Checking the <b>Terrain types</b>  will <b>switch terrain composition</b>.<br>
+ <form id="input_form">
+        <fieldset>
+                <legend>Rendering Parameters</legend>
+             <input type="radio" name="primitive" id="fog" value="Fog" checked> Fog  
+             <input type="radio" name="primitive" id="no fog" value="no fog" > No Fog  
+            </fieldset>
+            </form>
+        <fieldset>
+         <input type="radio" name="primitive" id="wireframe" value="wireframe"> Wireframe
+         <input type="radio" name="primitive" id="polygon" id="polygon" value="polygon" checked> Polygon
+         <input type="radio" name="primitive" id="wirepoly" value="wirepoly" > Polygon with Edges  
+        </fieldset>
+        </form>
+</body>
+
+</html>
